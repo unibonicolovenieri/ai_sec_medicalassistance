@@ -2,7 +2,7 @@
 
 Assistente medico intelligente con CrewAI e Letta AI per gestione appuntamenti sicura e privacy-first.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Setup ambiente
 
