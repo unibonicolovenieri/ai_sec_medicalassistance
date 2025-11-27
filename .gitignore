@@ -4,6 +4,7 @@
 venv/
 env/
 ENV/
+.venv/
 
 # Python
 __pycache__/
@@ -11,29 +12,59 @@ __pycache__/
 *$py.class
 *.so
 .Python
+build/
+dist/
+*.egg-info/
 
 # Environment
 .env
 .env.local
+.env.*.local
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+medical_ai.db
 
 # IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-*
 
 # OS
 .DS_Store
 Thumbs.db
+.Spotlight-V100
+.Trashes
 
-# Letta
+# Letta AI
 .letta/
+letta_data/
+*.letta_backup
 
 # Logs
 *.log
 logs/
+*.log.*
+
+# Backup files
+backup_*.json
+*_backup.json
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Documentation builds
+docs/_build/
+site/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

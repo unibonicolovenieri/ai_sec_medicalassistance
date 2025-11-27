@@ -9,14 +9,19 @@ anthropic>=0.18.0
 # Config
 python-dotenv>=1.0.0
 pydantic>=2.5.0
+pydantic-settings>=2.0.0
 
-# Database (per dopo)
+# Database
 sqlalchemy>=2.0.0
 alembic>=1.13.0
 
-# Security (per dopo)
+# Letta AI - Solo client HTTP (no dipendenze pesanti)
+requests>=2.31.0
+httpx>=0.24.0
+
+# Security
 bcrypt>=4.1.0
-python-jose>=3.3.0
+python-jose[cryptography]>=3.3.0
 
 # Dev
 pytest>=7.4.0

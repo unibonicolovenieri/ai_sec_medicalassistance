@@ -1,8 +1,13 @@
 from crewai.tools import tool
 from typing import Optional, Dict, List
 from datetime import datetime
+import logging
 
-# Database simulato in memoria (sostituiremo dopo con DB vero)
+from database.letta_client import get_letta_db
+
+logger = logging.getLogger(__name__)
+
+# Database simulato in memoria (FALLBACK se Letta non disponibile)
 class MemoryDB:
     """Database in memoria per sviluppo"""
     
@@ -85,9 +90,12 @@ class MemoryDB:
 # Istanza globale (in produzione: dependency injection)
 db = MemoryDB()
 
+# Istanza Letta (primary storage)
+letta_db = get_letta_db()
+
 
 # ============================================
-# TOOLS DEFINITI
+# TOOLS DEFINITI (con Letta Integration)
 # ============================================
 
 @tool
@@ -102,6 +110,19 @@ def authenticate_patient(patient_id: str, pin: str) -> str:
     Returns:
         Messaggio di conferma o errore autenticazione
     """
+    # Prova prima con Letta
+    if letta_db.is_available():
+        try:
+            success = letta_db.authenticate_patient(patient_id, pin)
+            if success:
+                # Marca anche sessione locale
+                db.authenticate(patient_id, pin)
+                logger.info(f"✅ Autenticazione Letta per {patient_id}")
+                return f"✅ Autenticazione riuscita tramite Letta. Benvenuto/a!"
+        except Exception as e:
+            logger.warning(f"Letta auth fallito, fallback: {e}")
+    
+    # Fallback a MemoryDB
     success = db.authenticate(patient_id, pin)
     
     if success:
@@ -172,7 +193,41 @@ def book_appointment(patient_id: str, date: str, time: str, reason: str) -> str:
     if not db.is_authenticated(patient_id):
         return "❌ ERRORE: Paziente non autenticato. Richiedi login prima."
     
-    # Crea appuntamento
+    appointment_data = {
+        "patient_id": patient_id,
+        "date": date,
+        "time": time,
+        "type": reason,
+        "doctor": "Dr. Verdi",
+        "status": "confirmed",
+        "id": len(db.appointments) + 1
+    }
+    
+    # Prova prima Letta
+    if letta_db.is_available():
+        try:
+            letta_result = letta_db.store_appointment(patient_id, appointment_data)
+            if letta_result:
+                logger.info(f"✅ Appuntamento salvato in Letta per {patient_id}")
+                # Salva anche in MemoryDB per consistenza
+                db.add_appointment(patient_id, date, time, reason)
+                
+                return f"""✅ Appuntamento confermato e salvato in memoria persistente!
+
+📋 Dettagli:
+  • ID Appuntamento: #{appointment_data['id']}
+  • Data: {date}
+  • Orario: {time}
+  • Medico: Dr. Verdi
+  • Tipo visita: {reason}
+  • Stato: confirmed
+
+💡 Riceverai un SMS di promemoria 24h prima.
+🧠 Letta AI ha memorizzato questo appuntamento."""
+        except Exception as e:
+            logger.warning(f"Letta booking fallito: {e}")
+    
+    # Fallback MemoryDB
     appointment = db.add_appointment(patient_id, date, time, reason)
     
     if appointment:
@@ -205,6 +260,26 @@ def get_my_appointments(patient_id: str) -> str:
     if not db.is_authenticated(patient_id):
         return "❌ Devi autenticarti per vedere i tuoi appuntamenti."
     
+    # Prova prima Letta
+    if letta_db.is_available():
+        try:
+            letta_appointments = letta_db.get_appointments(patient_id)
+            if letta_appointments:
+                result = f"📅 I tuoi appuntamenti ({len(letta_appointments)}) da Letta:\n\n"
+                for apt in letta_appointments:
+                    result += f"""━━━━━━━━━━━━━━━━━━━━━━
+🆔 Appuntamento #{apt.get('id', 'N/A')}
+📅 {apt['date']} ore {apt['time']}
+👨‍⚕️ Con {apt.get('doctor', 'Dr. Verdi')}
+📋 {apt['type']}
+✅ Stato: {apt.get('status', 'confirmed')}
+
+"""
+                return result
+        except Exception as e:
+            logger.warning(f"Letta get appointments fallito: {e}")
+    
+    # Fallback MemoryDB
     appointments = db.get_appointments(patient_id)
     
     if not appointments:
